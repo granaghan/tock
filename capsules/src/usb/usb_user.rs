@@ -29,15 +29,25 @@
 use core::mem;
 use kernel::common::cells::OptionalCell;
 use kernel::hil;
-use kernel::{AppId, Callback, CommandReturn, Driver, ErrorCode, Grant};
+use kernel::{
+    AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, GrantDefault, ProcessCallbackFactory,
+};
 
 use crate::driver;
 pub const DRIVER_NUM: usize = driver::NUM::UsbUser as usize;
 
-#[derive(Default)]
 pub struct App {
     callback: Callback,
     awaiting: Option<Request>,
+}
+
+impl GrantDefault for App {
+    fn grant_default(_process_id: AppId, _cb_factory: &mut ProcessCallbackFactory) -> Self {
+        App {
+            callback: Callback::default(),
+            awaiting: None,
+        }
+    }
 }
 
 pub struct UsbSyscallDriver<'a, C: hil::usb::Client<'a>> {

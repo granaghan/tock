@@ -44,7 +44,10 @@ use core::mem;
 use kernel::common::cells::OptionalCell;
 use kernel::hil;
 use kernel::hil::time::Frequency;
-use kernel::{AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, ReturnCode};
+use kernel::{
+    AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, GrantDefault, ProcessCallbackFactory,
+    ReturnCode,
+};
 
 /// Syscall driver number.
 use crate::driver;
@@ -61,10 +64,18 @@ pub enum BuzzerCommand {
     },
 }
 
-#[derive(Default)]
 pub struct App {
     callback: Callback, // Optional callback to signal when the buzzer event is over.
     pending_command: Option<BuzzerCommand>, // What command to run when the buzzer is free.
+}
+
+impl GrantDefault for App {
+    fn grant_default(_process_id: AppId, _cb_factory: &mut ProcessCallbackFactory) -> Self {
+        App {
+            callback: Callback::default(),
+            pending_command: None,
+        }
+    }
 }
 
 pub struct Buzzer<'a, A: hil::time::Alarm<'a>> {

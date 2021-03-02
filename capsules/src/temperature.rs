@@ -56,16 +56,26 @@ use core::cell::Cell;
 use core::convert::TryFrom;
 use core::mem;
 use kernel::hil;
-use kernel::{AppId, Callback, CommandReturn, Driver, ErrorCode, Grant};
+use kernel::{
+    AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, GrantDefault, ProcessCallbackFactory,
+};
 
 /// Syscall driver number.
 use crate::driver;
 pub const DRIVER_NUM: usize = driver::NUM::Temperature as usize;
 
-#[derive(Default)]
 pub struct App {
     callback: Callback,
     subscribed: bool,
+}
+
+impl GrantDefault for App {
+    fn grant_default(_process_id: AppId, _cb_factory: &mut ProcessCallbackFactory) -> Self {
+        App {
+            callback: Callback::default(),
+            subscribed: false,
+        }
+    }
 }
 
 pub struct TemperatureSensor<'a> {

@@ -26,21 +26,32 @@ use kernel::common::cells::{OptionalCell, TakeCell};
 use kernel::hil;
 use kernel::hil::uart;
 use kernel::{
-    AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, Read, ReadOnlyAppSlice, ReadWrite,
-    ReadWriteAppSlice, ReturnCode,
+    AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, GrantDefault, ProcessCallbackFactory,
+    Read, ReadOnlyAppSlice, ReadWrite, ReadWriteAppSlice, ReturnCode,
 };
 
 /// Syscall driver number.
 use crate::driver;
 pub const DRIVER_NUM: usize = driver::NUM::Nrf51822Serialization as usize;
 
-#[derive(Default)]
 pub struct App {
     callback: Callback,
     tx_buffer: ReadOnlyAppSlice,
     rx_buffer: ReadWriteAppSlice,
     rx_recv_so_far: usize, // How many RX bytes we have currently received.
     rx_recv_total: usize,  // The total number of bytes we expect to receive.
+}
+
+impl GrantDefault for App {
+    fn grant_default(_process_id: AppId, _cb_factory: &mut ProcessCallbackFactory) -> Self {
+        App {
+            callback: Callback::default(),
+            tx_buffer: ReadOnlyAppSlice::default(),
+            rx_buffer: ReadWriteAppSlice::default(),
+            rx_recv_so_far: 0,
+            rx_recv_total: 0,
+        }
+    }
 }
 
 // Local buffer for passing data between applications and the underlying

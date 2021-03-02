@@ -28,20 +28,30 @@ use kernel::hil::entropy::{Entropy32, Entropy8};
 use kernel::hil::rng;
 use kernel::hil::rng::{Client, Continue, Random, Rng};
 use kernel::{
-    AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, ReadWrite, ReadWriteAppSlice,
-    ReturnCode,
+    AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, GrantDefault, ProcessCallbackFactory,
+    ReadWrite, ReadWriteAppSlice, ReturnCode,
 };
 
 /// Syscall driver number.
 use crate::driver;
 pub const DRIVER_NUM: usize = driver::NUM::Rng as usize;
 
-#[derive(Default)]
 pub struct App {
     callback: Callback,
     buffer: ReadWriteAppSlice,
     remaining: usize,
     idx: usize,
+}
+
+impl GrantDefault for App {
+    fn grant_default(_process_id: AppId, _cb_factory: &mut ProcessCallbackFactory) -> Self {
+        App {
+            callback: Callback::default(),
+            buffer: ReadWriteAppSlice::default(),
+            remaining: 0,
+            idx: 0,
+        }
+    }
 }
 
 pub struct RngDriver<'a> {

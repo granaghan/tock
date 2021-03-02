@@ -36,8 +36,8 @@ use kernel::common::leasable_buffer::LeasableBuffer;
 use kernel::hil::digest;
 use kernel::hil::digest::DigestType;
 use kernel::{
-    AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, Read, ReadWrite, ReadWriteAppSlice,
-    ReturnCode,
+    AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, GrantDefault, ProcessCallbackFactory,
+    Read, ReadWrite, ReadWriteAppSlice, ReturnCode,
 };
 
 pub struct HmacDriver<'a, H: digest::Digest<'a, T>, T: 'static + DigestType> {
@@ -474,11 +474,22 @@ impl<'a, H: digest::Digest<'a, T> + digest::HMACSha256, T: DigestType> Driver
     }
 }
 
-#[derive(Default)]
 pub struct App {
     callback: Callback,
     pending_run_app: Option<AppId>,
     key: ReadWriteAppSlice,
     data: ReadWriteAppSlice,
     dest: ReadWriteAppSlice,
+}
+
+impl GrantDefault for App {
+    fn grant_default(_process_id: AppId, _cb_factory: &mut ProcessCallbackFactory) -> Self {
+        App {
+            callback: Callback::default(),
+            pending_run_app: None,
+            key: ReadWriteAppSlice::default(),
+            data: ReadWriteAppSlice::default(),
+            dest: ReadWriteAppSlice::default(),
+        }
+    }
 }

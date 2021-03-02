@@ -24,8 +24,8 @@ use kernel::capabilities::UdpDriverCapability;
 use kernel::common::cells::MapCell;
 use kernel::common::leasable_buffer::LeasableBuffer;
 use kernel::{
-    debug, AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, Read, ReadOnlyAppSlice,
-    ReadWrite, ReadWriteAppSlice, ReturnCode,
+    debug, AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, GrantDefault,
+    ProcessCallbackFactory, Read, ReadOnlyAppSlice, ReadWrite, ReadWriteAppSlice, ReturnCode,
 };
 
 use crate::driver;
@@ -66,7 +66,6 @@ impl UDPEndpoint {
     }
 }
 
-#[derive(Default)]
 pub struct App {
     rx_callback: Callback,
     tx_callback: Callback,
@@ -76,6 +75,21 @@ pub struct App {
     app_rx_cfg: ReadWriteAppSlice,
     pending_tx: Option<[UDPEndpoint; 2]>,
     bound_port: Option<UDPEndpoint>,
+}
+
+impl GrantDefault for App {
+    fn grant_default(_process_id: AppId, _cb_factory: &mut ProcessCallbackFactory) -> Self {
+        App {
+            rx_callback: Callback::default(),
+            tx_callback: Callback::default(),
+            app_read: ReadWriteAppSlice::default(),
+            app_write: ReadOnlyAppSlice::default(),
+            app_cfg: ReadWriteAppSlice::default(),
+            app_rx_cfg: ReadWriteAppSlice::default(),
+            pending_tx: None,
+            bound_port: None,
+        }
+    }
 }
 
 #[allow(dead_code)]

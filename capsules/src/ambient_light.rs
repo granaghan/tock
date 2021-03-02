@@ -16,17 +16,28 @@ use core::cell::Cell;
 use core::convert::TryFrom;
 use core::mem;
 use kernel::hil;
-use kernel::{AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, ReturnCode};
+use kernel::{
+    AppId, Callback, CommandReturn, Driver, ErrorCode, Grant, GrantDefault, ProcessCallbackFactory,
+    ReturnCode,
+};
 
 /// Syscall driver number.
 use crate::driver;
 pub const DRIVER_NUM: usize = driver::NUM::AmbientLight as usize;
 
 /// Per-process metadata
-#[derive(Default)]
 pub struct App {
     callback: Callback,
     pending: bool,
+}
+
+impl GrantDefault for App {
+    fn grant_default(_process_id: AppId, _cb_factory: &mut ProcessCallbackFactory) -> Self {
+        App {
+            callback: Callback::default(),
+            pending: false,
+        }
+    }
 }
 
 pub struct AmbientLight<'a> {

@@ -27,18 +27,31 @@ use core::mem;
 use kernel::common::cells::{OptionalCell, TakeCell};
 use kernel::hil;
 use kernel::ErrorCode;
-use kernel::{AppId, Callback, CommandReturn, Driver, Grant, Read, ReadOnlyAppSlice};
+use kernel::{
+    AppId, Callback, CommandReturn, Driver, Grant, GrantDefault, ProcessCallbackFactory, Read,
+    ReadOnlyAppSlice,
+};
 
 /// Syscall driver number.
 use crate::driver;
 pub const DRIVER_NUM: usize = driver::NUM::AppFlash as usize;
 
-#[derive(Default)]
 pub struct App {
     callback: Callback,
     buffer: ReadOnlyAppSlice,
     pending_command: bool,
     flash_address: usize,
+}
+
+impl GrantDefault for App {
+    fn grant_default(_process_id: AppId, _cb_factory: &mut ProcessCallbackFactory) -> Self {
+        App {
+            callback: Callback::default(),
+            buffer: ReadOnlyAppSlice::default(),
+            pending_command: false,
+            flash_address: 0,
+        }
+    }
 }
 
 pub struct AppFlash<'a> {
