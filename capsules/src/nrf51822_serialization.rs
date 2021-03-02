@@ -43,9 +43,9 @@ pub struct App {
 }
 
 impl GrantDefault for App {
-    fn grant_default(_process_id: AppId, _cb_factory: &mut ProcessCallbackFactory) -> Self {
+    fn grant_default(_process_id: AppId, cb_factory: &mut ProcessCallbackFactory) -> Self {
         App {
-            callback: Callback::default(),
+            callback: cb_factory.build_callback(0).unwrap(),
             tx_buffer: ReadOnlyAppSlice::default(),
             rx_buffer: ReadWriteAppSlice::default(),
             rx_recv_so_far: 0,

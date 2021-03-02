@@ -65,14 +65,14 @@ pub struct App {
 }
 
 impl GrantDefault for App {
-    fn grant_default(_process_id: AppId, _cb_factory: &mut ProcessCallbackFactory) -> Self {
+    fn grant_default(_process_id: AppId, cb_factory: &mut ProcessCallbackFactory) -> Self {
         App {
-            write_callback: Callback::default(),
+            write_callback: cb_factory.build_callback(1).unwrap(),
             write_buffer: ReadOnlyAppSlice::default(),
             write_len: 0,
             write_remaining: 0,
             pending_write: false,
-            read_callback: Callback::default(),
+            read_callback: cb_factory.build_callback(2).unwrap(),
             read_buffer: ReadWriteAppSlice::default(),
             read_len: 0,
         }

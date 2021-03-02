@@ -50,29 +50,11 @@ pub struct App {
 }
 
 impl GrantDefault for App {
-    fn grant_default(_process_id: AppId, _cb_factory: &mut ProcessCallbackFactory) -> Self {
+    fn grant_default(_process_id: AppId, cb_factory: &mut ProcessCallbackFactory) -> App {
         App {
-            touch_callback: Callback::default(),
-            gesture_callback: Callback::default(),
-            multi_touch_callback: Callback::default(),
-            events_buffer: ReadWriteAppSlice::default(),
-            ack: false,
-            dropped_events: 0,
-            x: 0,
-            y: 0,
-            status: 0,
-            touch_enable: false,
-            multi_touch_enable: false,
-        }
-    }
-}
-
-impl Default for App {
-    fn default() -> App {
-        App {
-            touch_callback: Callback::default(),
-            gesture_callback: Callback::default(),
-            multi_touch_callback: Callback::default(),
+            touch_callback: cb_factory.build_callback(0).unwrap(),
+            gesture_callback: cb_factory.build_callback(1).unwrap(),
+            multi_touch_callback: cb_factory.build_callback(2).unwrap(),
             events_buffer: ReadWriteAppSlice::default(),
             ack: true,
             dropped_events: 0,
