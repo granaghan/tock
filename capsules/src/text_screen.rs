@@ -41,8 +41,6 @@ pub struct App {
     callback: Option<Callback>,
     pending_command: bool,
     shared: Option<AppSlice<Shared, u8>>,
-    write_position: usize,
-    write_len: usize,
     command: TextScreenCommand,
     data1: usize,
     data2: usize,
@@ -54,8 +52,6 @@ impl Default for App {
             callback: None,
             pending_command: false,
             shared: None,
-            write_position: 0,
-            write_len: 0,
             command: TextScreenCommand::Idle,
             data1: 1,
             data2: 0,
@@ -107,7 +103,6 @@ impl<'a> TextScreen<'a> {
                     } else {
                         app.pending_command = true;
                         app.command = command;
-                        app.write_position = 0;
                         app.data1 = data1;
                         app.data2 = data2;
                         ReturnCode::SUCCESS
@@ -141,8 +136,6 @@ impl<'a> TextScreen<'a> {
                 .apps
                 .enter(appid, |app, _| {
                     if data1 > 0 {
-                        app.write_position = 0;
-                        app.write_len = data1;
                         if let Some(to_write_buffer) = &app.shared {
                             self.buffer.take().map_or(ReturnCode::FAIL, |buffer| {
                                 for n in 0..data1 {
@@ -261,7 +254,6 @@ impl<'a> Driver for TextScreen<'a> {
                 .enter(appid, |app, _| {
                     let _ = if let Some(ref s) = slice { s.len() } else { 0 };
                     app.shared = slice;
-                    app.write_position = 0;
                     ReturnCode::SUCCESS
                 })
                 .unwrap_or_else(|err| err.into()),
