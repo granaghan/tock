@@ -581,6 +581,10 @@ pub trait ProcessType {
     /// Increment the number of times the process called a syscall and record
     /// the last syscall that was called.
     fn debug_syscall_called(&self, last_syscall: Syscall);
+
+    /// Export stored state as a binary blob. Returns the number of bytes
+    /// written on success.
+    unsafe fn get_stored_state(&self, stored_state: &mut [usize]) -> Result<usize, ReturnCode>;
 }
 
 /// Generic trait for implementing process restart policies.
@@ -1639,7 +1643,7 @@ impl<C: Chip> ProcessType for Process<'_, C> {
         self.print_memory_map(writer);
 
         self.stored_state.map(|stored_state| {
-            self.chip.userspace_kernel_boundary().print_context(
+            <C as Chip>::UserspaceKernelBoundary::print_context(
                 self.memory.as_ptr(),
                 self.app_break.get(),
                 stored_state,
@@ -1746,6 +1750,17 @@ impl<C: Chip> ProcessType for Process<'_, C> {
             self.restart_count.get(),
             self.state.get(),
         )
+    }
+
+    unsafe fn get_stored_state(&self, state: &mut [usize]) -> Result<usize, ReturnCode> {
+        self.stored_state
+            .map(|stored_state| {
+                self.chip
+                    .userspace_kernel_boundary()
+                    .store_context(stored_state, state)
+            })
+            .unwrap()
+            .or(Err(ReturnCode::FAIL))
     }
 }
 

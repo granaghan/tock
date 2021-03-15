@@ -3,6 +3,7 @@
 
 use core::fmt::Write;
 use core::mem;
+use core::mem::size_of;
 use core::ptr::{read_volatile, write_volatile};
 
 /// This is used in the syscall handler. When set to 1 this means the
@@ -46,6 +47,29 @@ pub struct CortexMStoredState {
     psr: usize,
     psp: usize,
 }
+
+const MAJOR_VER: usize = 1;
+const MINOR_VER: usize = size_of::<CortexMStoredState>();
+
+impl core::convert::TryFrom<&[usize]> for CortexMStoredState {
+    type Error = ();
+    fn try_from(b: &[usize]) -> Result<CortexMStoredState, Self::Error> {
+        let size = MINOR_VER / size_of::<usize>() + 2usize;
+        if b.len() == size && b[0] == MAJOR_VER && b[1] == MINOR_VER {
+            let mut res = CortexMStoredState {
+                regs: Default::default(),
+                yield_pc: b[10],
+                psr: b[11],
+                psp: b[12],
+            };
+            res.regs.copy_from_slice(&b[2..10]);
+            Ok(res)
+        } else {
+            Err(())
+        }
+    }
+}
+
 
 /// Implementation of the `UserspaceKernelBoundary` for the Cortex-M non-floating point
 /// architecture.
@@ -248,7 +272,6 @@ impl kernel::syscall::UserspaceKernelBoundary for SysCall {
     }
 
     unsafe fn print_context(
-        &self,
         accessible_memory_start: *const u8,
         app_brk: *const u8,
         state: &CortexMStoredState,
@@ -331,5 +354,25 @@ impl kernel::syscall::UserspaceKernelBoundary for SysCall {
                 "!!ERROR - Cortex M Thumb only!"
             },
         ));
+    }
+
+    unsafe fn store_context(
+        &self,
+        state: &Self::StoredState,
+        output: &mut [usize],
+    ) -> Result<usize, ()> {
+        // MINOR_VER is size_of CoretxMStoredState +2 more usize for version.
+        let size = MINOR_VER / size_of::<usize>() + 2usize;
+        if output.len() >= size {
+            output[0] = MAJOR_VER;
+            output[1] = MINOR_VER;
+            output[2..10].copy_from_slice(&state.regs[0..8]);
+            output[10] = state.yield_pc;
+            output[11] = state.psr;
+            output[12] = state.psp;
+            Ok(size)
+        } else {
+            Err(())
+        }
     }
 }

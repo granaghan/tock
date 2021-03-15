@@ -1,6 +1,7 @@
 //! Kernel-userland system call interface for RISC-V architecture.
 
 use core::fmt::Write;
+use core::mem::size_of;
 
 use crate::csr::mcause;
 use kernel;
@@ -39,6 +40,28 @@ const R_A1: usize = 10;
 const R_A2: usize = 11;
 const R_A3: usize = 12;
 const R_A4: usize = 13;
+
+const MAJOR_VER: usize = 1;
+const MINOR_VER: usize = size_of::<Riscv32iStoredState>();
+
+impl core::convert::TryFrom<&[usize]> for Riscv32iStoredState {
+    type Error = ();
+    fn try_from(b: &[usize]) -> Result<Riscv32iStoredState, Self::Error> {
+        let size = MINOR_VER / size_of::<usize>() + 2usize;
+        if b.len() == size && b[0] == MAJOR_VER && b[1] == MINOR_VER {
+            let mut res = Riscv32iStoredState {
+                regs: Default::default(),
+                pc: b[33],
+                mcause: b[34],
+                mtval: b[35],
+            };
+            res.regs.copy_from_slice(&b[2..33]);
+            Ok(res)
+        } else {
+            Err(())
+        }
+    }
+}
 
 /// Implementation of the `UserspaceKernelBoundary` for the RISC-V architecture.
 pub struct SysCall(());
@@ -419,7 +442,6 @@ impl kernel::syscall::UserspaceKernelBoundary for SysCall {
     }
 
     unsafe fn print_context(
-        &self,
         _accessible_memory_start: *const u8,
         _app_brk: *const u8,
         state: &Riscv32iStoredState,
@@ -488,5 +510,25 @@ impl kernel::syscall::UserspaceKernelBoundary for SysCall {
              \r\n\r\n",
             state.mtval,
         ));
+    }
+
+    unsafe fn store_context(
+        &self,
+        state: &Riscv32iStoredState,
+        output: &mut [usize],
+    ) -> Result<usize, ()> {
+        // MINOR_VER is size_of Riscv32iStoredState +2 more usize for version.
+        let size = MINOR_VER / size_of::<usize>() + 2usize;
+        if output.len() >= size {
+            output[0] = MAJOR_VER;
+            output[1] = MINOR_VER;
+            output[2..33].copy_from_slice(&state.regs[0..31]);
+            output[33] = state.pc;
+            output[34] = state.mcause;
+            output[35] = state.mtval;
+            Ok(size)
+        } else {
+            Err(())
+        }
     }
 }

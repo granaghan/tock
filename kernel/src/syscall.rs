@@ -243,10 +243,17 @@ pub trait UserspaceKernelBoundary {
     /// Display architecture specific (e.g. CPU registers or status flags) data
     /// for a process identified by the stored state for that process.
     unsafe fn print_context(
-        &self,
         accessible_memory_start: *const u8,
         app_brk: *const u8,
         state: &Self::StoredState,
         writer: &mut dyn Write,
     );
+
+    /// Store architecture specific (e.g. CPU registers or status flags) data
+    /// for a process identified by its stack pointer.
+    unsafe fn store_context(
+        &self,
+        state: &Self::StoredState,
+        output: &mut [usize],
+    ) -> Result<usize, ()>;
 }
