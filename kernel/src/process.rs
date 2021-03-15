@@ -254,6 +254,80 @@ pub fn load_processes<C: Chip>(
     Ok(())
 }
 
+#[derive(Copy, Clone)]
+pub struct ProcessState {
+    pub flash_end: usize,
+    pub flash_start: usize,
+    pub flash_protected_size: usize,
+    pub flash_app_start: usize,
+    pub flash_app_size: usize,
+
+    // SRAM addresses
+    pub sram_end: usize,
+    pub sram_grant_start: usize,
+    pub sram_heap_end: usize,
+    pub sram_heap_start: Option<usize>,
+    pub sram_stack_start: Option<usize>,
+    pub sram_stack_bottom: Option<usize>,
+    pub sram_start: usize,
+
+    // SRAM sizes
+    pub sram_grant_size: usize,
+    pub sram_grant_allocated: usize,
+
+    // application statistics
+    pub events_queued: usize,
+    pub syscall_count: usize,
+    pub last_syscall: Option<Syscall>,
+    pub dropped_callback_count: usize,
+    pub restart_count: usize,
+    pub state: State,
+}
+
+impl ProcessState {
+    fn new(
+        flash_end: usize,
+        flash_start: usize,
+        flash_protected_size: usize,
+        sram_end: usize,
+        sram_grant_start: usize,
+        sram_heap_end: usize,
+        sram_heap_start: Option<usize>,
+        sram_stack_start: Option<usize>,
+        sram_stack_bottom: Option<usize>,
+        sram_start: usize,
+        events_queued: usize,
+        syscall_count: usize,
+        last_syscall: Option<Syscall>,
+        dropped_callback_count: usize,
+        restart_count: usize,
+        state: State,
+    ) -> ProcessState {
+        ProcessState {
+            flash_end: flash_end,
+            flash_start: flash_start,
+            flash_protected_size: flash_protected_size,
+            flash_app_start: flash_start + flash_protected_size,
+            flash_app_size: flash_end - (flash_start + flash_protected_size),
+            sram_end: sram_end,
+            sram_grant_start: sram_grant_start,
+            sram_heap_end: sram_heap_end,
+            sram_heap_start: sram_heap_start,
+            sram_stack_start: sram_stack_start,
+            sram_stack_bottom: sram_stack_bottom,
+            sram_start: sram_start,
+            sram_grant_size: sram_end - sram_grant_start,
+            sram_grant_allocated: sram_end - sram_grant_start,
+            events_queued: events_queued,
+            syscall_count: syscall_count,
+            last_syscall: last_syscall,
+            dropped_callback_count: dropped_callback_count,
+            restart_count: restart_count,
+            state: state,
+        }
+    }
+}
+
 /// This trait is implemented by process structs.
 pub trait ProcessType {
     /// Returns the process's identifier
@@ -477,6 +551,10 @@ pub trait ProcessType {
     /// This will return `None` if the process is inactive and cannot be
     /// switched to.
     unsafe fn switch_to(&self) -> Option<syscall::ContextSwitchReason>;
+
+    /// Get the memory map (Grant region, heap, stack, program memory, BSS, and
+    /// data sections) of this process.
+    unsafe fn get_memory_map(&self) -> ProcessState;
 
     /// Print out the memory map (Grant region, heap, stack, program
     /// memory, BSS, and data sections) of this process.
@@ -1638,6 +1716,36 @@ impl<C: Chip> ProcessType for Process<'_, C> {
                 ));
             }
         });
+    }
+
+    unsafe fn get_memory_map(&self) -> ProcessState {
+        ProcessState::new(
+            // Flash
+            self.flash.as_ptr().add(self.flash.len()) as usize,
+            self.flash.as_ptr() as usize,
+            self.header.get_protected_size() as usize,
+            // SRAM addresses
+            self.memory.as_ptr().add(self.memory.len()) as usize,
+            self.kernel_memory_break.get() as usize,
+            self.app_break.get() as usize,
+            self.debug.map_or(None, |debug| {
+                debug.app_heap_start_pointer.map(|p| p as usize)
+            }),
+            self.debug.map_or(None, |debug| {
+                debug.app_stack_start_pointer.map(|p| p as usize)
+            }),
+            self.debug.map_or(None, |debug| {
+                debug.app_stack_min_pointer.map(|p| p as usize)
+            }),
+            self.memory.as_ptr() as usize,
+            // application statistics
+            self.tasks.map_or(0, |tasks| tasks.len()),
+            self.debug.map_or(0, |debug| debug.syscall_count),
+            self.debug.map(|debug| debug.last_syscall).unwrap(),
+            self.debug.map_or(0, |debug| debug.dropped_callback_count),
+            self.restart_count.get(),
+            self.state.get(),
+        )
     }
 }
 
